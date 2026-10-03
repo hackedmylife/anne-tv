@@ -52,8 +52,21 @@ jobs:
       - name: Validate manifests
         run: python3 scripts/validate_project.py
 
-      - name: Lint and build debug APK
-        run: gradle :app:lintDebug :app:assembleDebug --stacktrace -PANNE_TV_REPO="$GITHUB_REPOSITORY"
+      - name: Android Lint
+        shell: bash
+        run: |
+          set +e
+          gradle :app:lintDebug --stacktrace -PANNE_TV_REPO="$GITHUB_REPOSITORY"
+          STATUS=$?
+          REPORT="app/build/intermediates/lint_intermediate_text_report/debug/lintReportDebug/lint-results-debug.txt"
+          if [[ -f "$REPORT" ]]; then
+            echo "----- Android Lint report -----"
+            cat "$REPORT"
+          fi
+          exit $STATUS
+
+      - name: Build debug APK
+        run: gradle :app:assembleDebug --stacktrace -PANNE_TV_REPO="$GITHUB_REPOSITORY"
 
       - uses: actions/upload-artifact@v4
         with:
