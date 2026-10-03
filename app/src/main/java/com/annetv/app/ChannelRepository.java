@@ -17,7 +17,6 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -120,7 +119,7 @@ public final class ChannelRepository {
                 );
                 result.add(c);
             }
-            result.sort(Comparator.comparingInt(channel -> channel.number));
+            Collections.sort(result, (left, right) -> Integer.compare(left.number, right.number));
             return result;
         } catch (Exception ignored) {
             return Collections.emptyList();
