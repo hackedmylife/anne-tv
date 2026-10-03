@@ -35,7 +35,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-@UnstableApi
 public final class MainActivity extends AppCompatActivity {
     private static final String PREFS = "anne_tv";
     private static final String KEY_LAST_ID = "last_channel_id";
@@ -263,6 +262,7 @@ public final class MainActivity extends AppCompatActivity {
         playCurrentStream(false);
     }
 
+    @UnstableApi
     private void playCurrentStream(boolean reconnecting) {
         if (channels.isEmpty()) return;
         Channel c = channels.get(currentIndex);
