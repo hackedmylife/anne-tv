@@ -11,22 +11,33 @@ public final class Channel {
     public final String group;
     public final boolean favorite;
     public final List<String> streamUrls;
+    public final String referer;
+    public final String origin;
+    public final String userAgent;
 
-    public Channel(String id, int number, String name, String group, boolean favorite, List<String> streamUrls) {
+    public Channel(String id, int number, String name, String group, boolean favorite,
+                   List<String> streamUrls, String referer, String origin, String userAgent) {
         this.id = id;
         this.number = number;
         this.name = name;
         this.group = group;
         this.favorite = favorite;
+        this.referer = clean(referer);
+        this.origin = clean(origin);
+        this.userAgent = clean(userAgent);
 
         List<String> cleaned = new ArrayList<>();
         if (streamUrls != null) {
             for (String url : streamUrls) {
-                String value = url == null ? "" : url.trim();
+                String value = clean(url);
                 if (!value.isEmpty() && !cleaned.contains(value)) cleaned.add(value);
             }
         }
         this.streamUrls = Collections.unmodifiableList(cleaned);
+    }
+
+    private static String clean(String value) {
+        return value == null ? "" : value.trim();
     }
 
     public boolean hasStreams() {
