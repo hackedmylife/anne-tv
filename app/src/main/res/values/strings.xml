@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">Anne TV</string>
+    <string name="reconnecting">Yayın yeniden bağlanıyor…</string>
+    <string name="stream_unavailable">Bu kanalın yayın adresi henüz tanımlı değil.</string>
+    <string name="no_channels">Kanal listesi bulunamadı.</string>
+    <string name="update_available">Anne TV güncellemesi hazır</string>
+    <string name="update_message">Yeni sürüm indirilsin mi?</string>
+    <string name="update_now">Güncelle</string>
+    <string name="later">Daha sonra</string>
+    <string name="update_downloading">Güncelleme indiriliyor…</string>
+    <string name="update_download_failed">Güncelleme indirilemedi.</string>
+    <string name="update_hash_failed">Güncelleme doğrulanamadı.</string>
+    <string name="update_install_failed">Güncelleme kurulumu başlatılamadı.</string>
+</resources>
