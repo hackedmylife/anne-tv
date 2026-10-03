@@ -18,6 +18,7 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.OptIn;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.PlaybackException;
@@ -262,7 +263,7 @@ public final class MainActivity extends AppCompatActivity {
         playCurrentStream(false);
     }
 
-    @UnstableApi
+    @OptIn(markerClass = UnstableApi.class)
     private void playCurrentStream(boolean reconnecting) {
         if (channels.isEmpty()) return;
         Channel c = channels.get(currentIndex);
