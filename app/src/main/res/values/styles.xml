@@ -1,0 +1,12 @@
+<resources>
+    <style name="Theme.AnneTV" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:colorAccent">#FFFFFF</item>
+        <item name="android:navigationBarColor">#000000</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:windowDisablePreview">true</item>
+    </style>
+</resources>
