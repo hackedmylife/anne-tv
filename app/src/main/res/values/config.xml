@@ -1,0 +1,6 @@
+<resources>
+    <!-- GitHub Actions derlemesinde URL'ler BuildConfig'a otomatik gömülür. -->
+    <!-- Yerel derlemelerde bu iki alan isteğe bağlı geri dönüş olarak kullanılabilir. -->
+    <string name="channels_manifest_url" translatable="false"></string>
+    <string name="update_manifest_url" translatable="false"></string>
+</resources>
