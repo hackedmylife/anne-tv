@@ -100,6 +100,20 @@ public final class ChannelRepository {
         return out.toString();
     }
 
+    private static List<String> readStreams(JSONObject o) {
+        List<String> streams = new ArrayList<>();
+        JSONArray urls = o.optJSONArray("streamUrls");
+        if (urls != null) {
+            for (int i = 0; i < urls.length(); i++) {
+                String value = urls.optString(i, "").trim();
+                if (!value.isEmpty() && !streams.contains(value)) streams.add(value);
+            }
+        }
+        String legacy = o.optString("streamUrl", "").trim();
+        if (!legacy.isEmpty() && !streams.contains(legacy)) streams.add(legacy);
+        return streams;
+    }
+
     private static List<Channel> parse(String json) {
         if (TextUtils.isEmpty(json)) return Collections.emptyList();
         try {
@@ -115,7 +129,7 @@ public final class ChannelRepository {
                         o.optString("name", "Kanal " + (i + 1)),
                         o.optString("group", "TV"),
                         o.optBoolean("favorite", false),
-                        o.optString("streamUrl", "")
+                        readStreams(o)
                 );
                 result.add(c);
             }
