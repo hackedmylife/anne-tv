@@ -50,6 +50,7 @@ public final class MainActivity extends AppCompatActivity {
     private UpdateChecker updateChecker;
 
     private int currentIndex = 0;
+    private int currentStreamIndex = 0;
     private int reconnectAttempt = 0;
     private boolean panelVisible = false;
 
@@ -154,14 +155,14 @@ public final class MainActivity extends AppCompatActivity {
                 if (state == Player.STATE_READY && player.getPlayWhenReady()) {
                     reconnectAttempt = 0;
                     hideCenterMessage();
-                    if (!channels.isEmpty()) showBanner(channels.get(currentIndex), "CANLI");
+                    if (!channels.isEmpty()) showBanner(channels.get(currentIndex), getString(R.string.live));
                 } else if (state == Player.STATE_BUFFERING) {
-                    if (!channels.isEmpty()) showBanner(channels.get(currentIndex), "Yükleniyor…");
+                    if (!channels.isEmpty()) showBanner(channels.get(currentIndex), getString(R.string.loading));
                 }
             }
 
             @Override public void onPlayerError(@NonNull PlaybackException error) {
-                scheduleReconnect();
+                tryFallbackOrReconnect();
             }
         });
     }
@@ -172,7 +173,8 @@ public final class MainActivity extends AppCompatActivity {
             return;
         }
 
-        String playingId = channels.isEmpty() ? null : channels.get(currentIndex).id;
+        Channel previous = channels.isEmpty() ? null : channels.get(currentIndex);
+        String playingId = previous == null ? null : previous.id;
         channels.clear();
         channels.addAll(incoming);
         rebuildRows();
@@ -185,12 +187,14 @@ public final class MainActivity extends AppCompatActivity {
         int found = indexById(desired);
         currentIndex = found >= 0 ? found : firstPlayableIndex();
 
-        if (player.getCurrentMediaItem() == null || found < 0) playCurrent();
+        boolean sourceChanged = previous != null && found >= 0
+                && !previous.streamUrls.equals(channels.get(found).streamUrls);
+        if (player.getCurrentMediaItem() == null || found < 0 || sourceChanged) playCurrent();
     }
 
     private int firstPlayableIndex() {
         for (int i = 0; i < channels.size(); i++) {
-            if (!TextUtils.isEmpty(channels.get(i).streamUrl)) return i;
+            if (channels.get(i).hasStreams()) return i;
         }
         return 0;
     }
@@ -234,28 +238,55 @@ public final class MainActivity extends AppCompatActivity {
         remember(c);
         handler.removeCallbacks(reconnectRunnable);
         reconnectAttempt = 0;
-        showBanner(c, "Yükleniyor…");
+        currentStreamIndex = 0;
+        showBanner(c, getString(R.string.loading));
 
-        if (TextUtils.isEmpty(c.streamUrl)) {
+        if (!c.hasStreams()) {
             player.stop();
             showCenterMessage(c.name + "\n\n" + getString(R.string.stream_unavailable));
             return;
         }
 
-        hideCenterMessage();
-        player.setMediaItem(MediaItem.fromUri(c.streamUrl));
+        playCurrentStream(false);
+    }
+
+    private void playCurrentStream(boolean reconnecting) {
+        if (channels.isEmpty()) return;
+        Channel c = channels.get(currentIndex);
+        if (!c.hasStreams()) return;
+        String url = c.streamAt(currentStreamIndex);
+        if (TextUtils.isEmpty(url)) return;
+
+        if (reconnecting) {
+            showCenterMessage(getString(R.string.reconnecting));
+        } else {
+            hideCenterMessage();
+        }
+        player.setMediaItem(MediaItem.fromUri(url));
         player.prepare();
         player.play();
+    }
+
+    private void tryFallbackOrReconnect() {
+        if (channels.isEmpty()) return;
+        Channel c = channels.get(currentIndex);
+        if (currentStreamIndex + 1 < c.streamUrls.size()) {
+            currentStreamIndex++;
+            handler.removeCallbacks(reconnectRunnable);
+            showCenterMessage(getString(R.string.trying_backup));
+            showBanner(c, getString(R.string.backup_stream));
+            playCurrentStream(false);
+            return;
+        }
+        scheduleReconnect();
     }
 
     private void restartCurrent() {
         if (channels.isEmpty()) return;
         Channel c = channels.get(currentIndex);
-        if (TextUtils.isEmpty(c.streamUrl)) return;
-        showCenterMessage(getString(R.string.reconnecting));
-        player.setMediaItem(MediaItem.fromUri(c.streamUrl));
-        player.prepare();
-        player.play();
+        if (!c.hasStreams()) return;
+        currentStreamIndex = 0;
+        playCurrentStream(true);
     }
 
     private void scheduleReconnect() {
