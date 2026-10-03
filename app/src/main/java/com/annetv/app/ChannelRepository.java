@@ -129,7 +129,10 @@ public final class ChannelRepository {
                         o.optString("name", "Kanal " + (i + 1)),
                         o.optString("group", "TV"),
                         o.optBoolean("favorite", false),
-                        readStreams(o)
+                        readStreams(o),
+                        o.optString("referer", ""),
+                        o.optString("origin", ""),
+                        o.optString("userAgent", "")
                 );
                 result.add(c);
             }
