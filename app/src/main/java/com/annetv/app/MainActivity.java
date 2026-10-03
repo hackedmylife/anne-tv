@@ -27,6 +27,7 @@ import androidx.media3.ui.PlayerView;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public final class MainActivity extends AppCompatActivity {
     private static final String PREFS = "anne_tv";
@@ -128,7 +129,7 @@ public final class MainActivity extends AppCompatActivity {
         channelPanel.setVisibility(View.GONE);
 
         TextView title = new TextView(this);
-        title.setText("KANALLAR");
+        title.setText(R.string.channels_title);
         title.setTextColor(Color.WHITE);
         title.setTextSize(23);
         title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
@@ -200,7 +201,7 @@ public final class MainActivity extends AppCompatActivity {
             final int index = i;
             Channel c = channels.get(i);
             TextView row = new TextView(this);
-            row.setText(String.format("%02d   %s%s", c.number, c.favorite ? "★ " : "", c.name));
+            row.setText(String.format(Locale.getDefault(), "%02d   %s%s", c.number, c.favorite ? "★ " : "", c.name));
             row.setTextSize(21);
             row.setTextColor(Color.WHITE);
             row.setGravity(Gravity.CENTER_VERTICAL);
