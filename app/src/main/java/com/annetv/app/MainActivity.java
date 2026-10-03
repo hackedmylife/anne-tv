@@ -22,16 +22,26 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
+import androidx.media3.common.util.UnstableApi;
+import androidx.media3.datasource.DefaultDataSource;
+import androidx.media3.datasource.DefaultHttpDataSource;
 import androidx.media3.exoplayer.ExoPlayer;
+import androidx.media3.exoplayer.hls.HlsMediaSource;
 import androidx.media3.ui.PlayerView;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
+@UnstableApi
 public final class MainActivity extends AppCompatActivity {
     private static final String PREFS = "anne_tv";
     private static final String KEY_LAST_ID = "last_channel_id";
+    private static final String DEFAULT_USER_AGENT =
+            "Mozilla/5.0 (Linux; Android 9; SmartTV) AppleWebKit/537.36 " +
+            "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final List<Channel> channels = new ArrayList<>();
@@ -188,7 +198,10 @@ public final class MainActivity extends AppCompatActivity {
         currentIndex = found >= 0 ? found : firstPlayableIndex();
 
         boolean sourceChanged = previous != null && found >= 0
-                && !previous.streamUrls.equals(channels.get(found).streamUrls);
+                && (!previous.streamUrls.equals(channels.get(found).streamUrls)
+                || !previous.referer.equals(channels.get(found).referer)
+                || !previous.origin.equals(channels.get(found).origin)
+                || !previous.userAgent.equals(channels.get(found).userAgent));
         if (player.getCurrentMediaItem() == null || found < 0 || sourceChanged) playCurrent();
     }
 
@@ -262,7 +275,25 @@ public final class MainActivity extends AppCompatActivity {
         } else {
             hideCenterMessage();
         }
-        player.setMediaItem(MediaItem.fromUri(url));
+
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Accept", "*/*");
+        headers.put("Accept-Language", "tr-TR,tr;q=0.9,en;q=0.8");
+        if (!TextUtils.isEmpty(c.referer)) headers.put("Referer", c.referer);
+        if (!TextUtils.isEmpty(c.origin)) headers.put("Origin", c.origin);
+
+        String userAgent = TextUtils.isEmpty(c.userAgent) ? DEFAULT_USER_AGENT : c.userAgent;
+        DefaultHttpDataSource.Factory httpFactory = new DefaultHttpDataSource.Factory()
+                .setUserAgent(userAgent)
+                .setAllowCrossProtocolRedirects(true)
+                .setConnectTimeoutMs(8000)
+                .setReadTimeoutMs(12000)
+                .setDefaultRequestProperties(headers);
+        DefaultDataSource.Factory dataSourceFactory = new DefaultDataSource.Factory(this, httpFactory);
+        HlsMediaSource mediaSource = new HlsMediaSource.Factory(dataSourceFactory)
+                .createMediaSource(MediaItem.fromUri(url));
+
+        player.setMediaSource(mediaSource);
         player.prepare();
         player.play();
     }
