@@ -1,0 +1,66 @@
+plugins {
+    id 'com.android.application'
+}
+
+def repoSlug = (project.findProperty('ANNE_TV_REPO') ?: '').toString().trim()
+def channelsUrl = repoSlug ? "https://raw.githubusercontent.com/${repoSlug}/main/channels.json" : ''
+def updateUrl = repoSlug ? "https://raw.githubusercontent.com/${repoSlug}/main/update.json" : ''
+def signingStore = System.getenv('ANNE_TV_KEYSTORE_PATH')
+def signingStorePassword = System.getenv('ANNE_TV_KEYSTORE_PASSWORD')
+def signingAlias = System.getenv('ANNE_TV_KEY_ALIAS')
+def signingKeyPassword = System.getenv('ANNE_TV_KEY_PASSWORD')
+
+android {
+    namespace 'com.annetv.app'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId 'com.annetv.app'
+        minSdk 23
+        targetSdk 36
+        versionCode 2
+        versionName '0.2.0'
+
+        buildConfigField 'String', 'CHANNELS_MANIFEST_URL', '"' + channelsUrl + '"'
+        buildConfigField 'String', 'UPDATE_MANIFEST_URL', '"' + updateUrl + '"'
+        buildConfigField 'String', 'REPOSITORY_SLUG', '"' + repoSlug + '"'
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    signingConfigs {
+        release {
+            if (signingStore && signingStorePassword && signingAlias && signingKeyPassword) {
+                storeFile file(signingStore)
+                storePassword signingStorePassword
+                keyAlias signingAlias
+                keyPassword signingKeyPassword
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            if (signingStore && signingStorePassword && signingAlias && signingKeyPassword) {
+                signingConfig signingConfigs.release
+            }
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.8.0'
+    implementation 'androidx.media3:media3-exoplayer:1.11.1'
+    implementation 'androidx.media3:media3-exoplayer-hls:1.11.1'
+    implementation 'androidx.media3:media3-ui:1.11.1'
+}
