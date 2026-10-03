@@ -1,6 +1,10 @@
 <resources>
     <string name="app_name">Anne TV</string>
     <string name="channels_title">KANALLAR</string>
+    <string name="live">CANLI</string>
+    <string name="loading">Yükleniyor…</string>
+    <string name="backup_stream">Yedek yayın</string>
+    <string name="trying_backup">Yedek yayın deneniyor…</string>
     <string name="reconnecting">Yayın yeniden bağlanıyor…</string>
     <string name="stream_unavailable">Bu kanalın yayın adresi henüz tanımlı değil.</string>
     <string name="no_channels">Kanal listesi bulunamadı.</string>
