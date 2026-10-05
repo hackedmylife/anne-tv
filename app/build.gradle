@@ -18,8 +18,8 @@ android {
         applicationId 'com.annetv.app'
         minSdk 23
         targetSdk 36
-        versionCode 6
-        versionName '0.4.1'
+        versionCode 7
+        versionName '0.4.2'
 
         buildConfigField 'String', 'CHANNELS_MANIFEST_URL', '"' + channelsUrl + '"'
         buildConfigField 'String', 'UPDATE_MANIFEST_URL', '"' + updateUrl + '"'
