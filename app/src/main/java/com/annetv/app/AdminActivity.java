@@ -1,5 +1,6 @@
 package com.annetv.app;
 
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -21,6 +22,8 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
 public final class AdminActivity extends AppCompatActivity {
+    private static final String ANDROID_SETTINGS_PACKAGE = "com.android.settings";
+
     private SharedPreferences preferences;
     private LinearLayout actions;
     private TextView status;
@@ -112,11 +115,13 @@ public final class AdminActivity extends AppCompatActivity {
         if (status == null || autoStartAction == null) return;
         boolean autoStart = preferences.getBoolean(BootReceiver.KEY_AUTO_START, true);
         boolean isHome = isAnneTvDefaultHome();
+        boolean canInstall = canRequestPackageInstalls();
 
         status.setText(getString(
                 R.string.admin_status,
                 autoStart ? getString(R.string.admin_enabled) : getString(R.string.admin_disabled),
-                isHome ? getString(R.string.admin_home_anne_tv) : getString(R.string.admin_home_other)));
+                isHome ? getString(R.string.admin_home_anne_tv) : getString(R.string.admin_home_other),
+                canInstall ? getString(R.string.admin_permission_granted) : getString(R.string.admin_permission_not_granted)));
 
         autoStartAction.setText(autoStart
                 ? getString(R.string.admin_disable_autostart)
@@ -135,6 +140,15 @@ public final class AdminActivity extends AppCompatActivity {
         }
     }
 
+    private boolean canRequestPackageInstalls() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return true;
+        try {
+            return getPackageManager().canRequestPackageInstalls();
+        } catch (RuntimeException ignored) {
+            return false;
+        }
+    }
+
     private void toggleAutoStart() {
         boolean current = preferences.getBoolean(BootReceiver.KEY_AUTO_START, true);
         preferences.edit().putBoolean(BootReceiver.KEY_AUTO_START, !current).apply();
@@ -145,39 +159,88 @@ public final class AdminActivity extends AppCompatActivity {
     }
 
     private void openHomeSettings() {
+        Intent direct = new Intent(Settings.ACTION_HOME_SETTINGS);
+        direct.setPackage(ANDROID_SETTINGS_PACKAGE);
+        if (tryStart(direct)) return;
+
         if (tryStart(new Intent(Settings.ACTION_HOME_SETTINGS))) return;
 
         Intent home = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME);
         Intent chooser = Intent.createChooser(home, getString(R.string.admin_home_chooser_title));
         if (tryStart(chooser)) return;
 
-        openAndroidSettings();
+        showUnavailable();
     }
 
     private void openApplicationSettings() {
-        Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                Uri.parse("package:" + getPackageName()));
-        if (!tryStart(intent)) openAndroidSettings();
+        Uri packageUri = Uri.parse("package:" + getPackageName());
+
+        Intent direct = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, packageUri);
+        direct.setPackage(ANDROID_SETTINGS_PACKAGE);
+        if (tryStart(direct)) return;
+
+        if (tryExplicitSettings(
+                "com.android.settings.Settings$AppInfoDashboardActivity",
+                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                packageUri)) return;
+
+        if (tryExplicitSettings(
+                "com.android.settings.Settings$ManageApplicationsActivity",
+                Settings.ACTION_MANAGE_APPLICATIONS_SETTINGS,
+                null)) return;
+
+        Intent standard = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, packageUri);
+        if (tryStart(standard)) return;
+
+        showUnavailable();
     }
 
     private void openUnknownSources() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Intent intent = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-                    Uri.parse("package:" + getPackageName()));
-            if (tryStart(intent)) return;
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            openApplicationSettings();
+            return;
         }
-        openApplicationSettings();
+
+        Uri packageUri = Uri.parse("package:" + getPackageName());
+
+        Intent direct = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, packageUri);
+        direct.setPackage(ANDROID_SETTINGS_PACKAGE);
+        if (tryStart(direct)) return;
+
+        if (tryExplicitSettings(
+                "com.android.settings.Settings$ManageExternalSourcesActivity",
+                Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                packageUri)) return;
+
+        Intent standard = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, packageUri);
+        if (tryStart(standard)) return;
+
+        showUnavailable();
     }
 
     private void openAndroidSettings() {
-        if (!tryStart(new Intent(Settings.ACTION_SETTINGS))) {
-            Toast.makeText(this, R.string.admin_settings_unavailable, Toast.LENGTH_LONG).show();
-        }
+        Intent direct = new Intent(Settings.ACTION_SETTINGS);
+        direct.setPackage(ANDROID_SETTINGS_PACKAGE);
+        if (tryStart(direct)) return;
+
+        if (tryExplicitSettings("com.android.settings.Settings", Settings.ACTION_SETTINGS, null)) return;
+
+        if (!tryStart(new Intent(Settings.ACTION_SETTINGS))) showUnavailable();
+    }
+
+    private boolean tryExplicitSettings(String className, String action, Uri data) {
+        Intent intent = new Intent(action);
+        intent.setComponent(new ComponentName(ANDROID_SETTINGS_PACKAGE, className));
+        if (data != null) intent.setData(data);
+        return tryStart(intent);
+    }
+
+    private void showUnavailable() {
+        Toast.makeText(this, R.string.admin_settings_unavailable, Toast.LENGTH_LONG).show();
     }
 
     private boolean tryStart(Intent intent) {
         try {
-            if (intent.resolveActivity(getPackageManager()) == null) return false;
             startActivity(intent);
             return true;
         } catch (RuntimeException ignored) {
