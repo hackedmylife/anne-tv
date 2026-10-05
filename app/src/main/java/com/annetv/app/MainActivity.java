@@ -1,6 +1,7 @@
 package com.annetv.app;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -39,6 +40,7 @@ import java.util.Map;
 public final class MainActivity extends AppCompatActivity {
     private static final String PREFS = "anne_tv";
     private static final String KEY_LAST_ID = "last_channel_id";
+    private static final long ADMIN_HOLD_MS = 4000L;
     private static final String DEFAULT_USER_AGENT =
             "Mozilla/5.0 (Linux; Android 9; SmartTV) AppleWebKit/537.36 " +
             "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
@@ -63,10 +65,18 @@ public final class MainActivity extends AppCompatActivity {
     private int currentStreamIndex = 0;
     private int reconnectAttempt = 0;
     private boolean panelVisible = false;
+    private boolean adminLongPressTriggered = false;
 
     private final Runnable hideBanner = () -> banner.setVisibility(View.GONE);
     private final Runnable commitDigits = this::switchFromDigits;
     private final Runnable reconnectRunnable = this::restartCurrent;
+    private final Runnable openAdminRunnable = () -> {
+        adminLongPressTriggered = true;
+        handler.removeCallbacks(commitDigits);
+        digitBuffer.setLength(0);
+        hideCenterMessage();
+        startActivity(new Intent(this, AdminActivity.class));
+    };
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
@@ -409,8 +419,26 @@ public final class MainActivity extends AppCompatActivity {
     }
 
     @Override public boolean dispatchKeyEvent(KeyEvent event) {
-        if (event.getAction() != KeyEvent.ACTION_DOWN) return super.dispatchKeyEvent(event);
         int k = event.getKeyCode();
+
+        if (!panelVisible && k == KeyEvent.KEYCODE_0) {
+            if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                if (event.getRepeatCount() == 0) {
+                    adminLongPressTriggered = false;
+                    handler.removeCallbacks(openAdminRunnable);
+                    handler.postDelayed(openAdminRunnable, ADMIN_HOLD_MS);
+                    appendDigit(0);
+                }
+                return true;
+            }
+            if (event.getAction() == KeyEvent.ACTION_UP) {
+                handler.removeCallbacks(openAdminRunnable);
+                adminLongPressTriggered = false;
+                return true;
+            }
+        }
+
+        if (event.getAction() != KeyEvent.ACTION_DOWN) return super.dispatchKeyEvent(event);
 
         if (panelVisible) {
             if (k == KeyEvent.KEYCODE_BACK || k == KeyEvent.KEYCODE_MENU) {
@@ -428,7 +456,7 @@ public final class MainActivity extends AppCompatActivity {
         if (k == KeyEvent.KEYCODE_DPAD_CENTER || k == KeyEvent.KEYCODE_ENTER || k == KeyEvent.KEYCODE_MENU) {
             togglePanel(); return true;
         }
-        if (k >= KeyEvent.KEYCODE_0 && k <= KeyEvent.KEYCODE_9) {
+        if (k >= KeyEvent.KEYCODE_1 && k <= KeyEvent.KEYCODE_9) {
             appendDigit(k - KeyEvent.KEYCODE_0); return true;
         }
         return super.dispatchKeyEvent(event);
@@ -443,6 +471,7 @@ public final class MainActivity extends AppCompatActivity {
 
     @Override protected void onPause() {
         super.onPause();
+        handler.removeCallbacks(openAdminRunnable);
         if (player != null) player.pause();
     }
 
