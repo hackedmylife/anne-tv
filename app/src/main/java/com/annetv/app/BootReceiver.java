@@ -5,6 +5,7 @@ import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Build;
 import android.os.SystemClock;
 
 public final class BootReceiver extends BroadcastReceiver {
@@ -12,8 +13,8 @@ public final class BootReceiver extends BroadcastReceiver {
     static final String KEY_AUTO_START = "auto_start_enabled";
 
     private static final String ACTION_BOOT_RETRY = "com.annetv.app.action.BOOT_RETRY";
-    private static final int RETRY_ONE_REQUEST = 4101;
-    private static final int RETRY_TWO_REQUEST = 4102;
+    private static final int[] RETRY_REQUESTS = {4101, 4102, 4103, 4104};
+    private static final long[] RETRY_DELAYS_MS = {5000L, 15000L, 30000L, 45000L};
 
     @Override
     public void onReceive(Context context, Intent intent) {
@@ -21,27 +22,57 @@ public final class BootReceiver extends BroadcastReceiver {
         String action = intent.getAction();
 
         boolean bootEvent = Intent.ACTION_BOOT_COMPLETED.equals(action)
-                || Intent.ACTION_USER_UNLOCKED.equals(action)
+                || (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N
+                    && Intent.ACTION_LOCKED_BOOT_COMPLETED.equals(action))
+                || (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N
+                    && Intent.ACTION_USER_UNLOCKED.equals(action))
                 || Intent.ACTION_MY_PACKAGE_REPLACED.equals(action)
                 || "android.intent.action.QUICKBOOT_POWERON".equals(action)
                 || "com.htc.intent.action.QUICKBOOT_POWERON".equals(action);
         boolean retryEvent = ACTION_BOOT_RETRY.equals(action);
         if (!bootEvent && !retryEvent) return;
 
-        boolean enabled = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                .getBoolean(KEY_AUTO_START, true);
-        if (!enabled) {
+        if (!isAutoStartEnabled(context)) {
             cancelRetries(context);
             return;
         }
 
         launchAnneTv(context);
 
-        // Some TV firmwares start their own launcher after BOOT_COMPLETED and
-        // cover third-party HOME apps. Retry after the OEM launcher has settled.
+        // Onvo-style TV firmware may force its own launcher after the first
+        // boot broadcast. Schedule several bounded retries so Anne TV can take
+        // over after the OEM launcher has finished its cold-start sequence.
         if (bootEvent) {
-            scheduleRetry(context, RETRY_ONE_REQUEST, 8000L);
-            scheduleRetry(context, RETRY_TWO_REQUEST, 18000L);
+            for (int i = 0; i < RETRY_REQUESTS.length; i++) {
+                scheduleRetry(context, RETRY_REQUESTS[i], RETRY_DELAYS_MS[i]);
+            }
+        }
+    }
+
+    private static boolean isAutoStartEnabled(Context context) {
+        // Direct-boot broadcasts can arrive before credential-encrypted storage
+        // is available. AdminActivity mirrors the preference into device-
+        // protected storage so the receiver can read it during cold boot.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            try {
+                Context directBoot = context.createDeviceProtectedStorageContext();
+                if (directBoot.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                        .contains(KEY_AUTO_START)) {
+                    return directBoot.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                            .getBoolean(KEY_AUTO_START, true);
+                }
+            } catch (RuntimeException ignored) {
+                // Fall back to the normal preference/default below.
+            }
+        }
+
+        try {
+            return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                    .getBoolean(KEY_AUTO_START, true);
+        } catch (RuntimeException ignored) {
+            // During locked boot credential storage may be unavailable. Auto-
+            // start defaults to enabled, matching the product's intended mode.
+            return true;
         }
     }
 
@@ -53,8 +84,8 @@ public final class BootReceiver extends BroadcastReceiver {
                             | Intent.FLAG_ACTIVITY_SINGLE_TOP);
             context.startActivity(launch);
         } catch (RuntimeException ignored) {
-            // OEM firmware may temporarily reject launches while boot is still
-            // progressing. Delayed AlarmManager retries provide the fallback.
+            // The TV may temporarily reject activity launches while early boot
+            // is still progressing. AlarmManager retries handle that window.
         }
     }
 
@@ -76,7 +107,7 @@ public final class BootReceiver extends BroadcastReceiver {
             try {
                 alarmManager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerAt, pendingIntent);
             } catch (RuntimeException ignoredAgain) {
-                // The immediate launch and HOME role remain as fallbacks.
+                // HOME role and the other boot broadcasts remain as fallbacks.
             }
         }
     }
@@ -84,8 +115,9 @@ public final class BootReceiver extends BroadcastReceiver {
     static void cancelRetries(Context context) {
         AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         if (alarmManager == null) return;
-        cancelRetry(context, alarmManager, RETRY_ONE_REQUEST);
-        cancelRetry(context, alarmManager, RETRY_TWO_REQUEST);
+        for (int requestCode : RETRY_REQUESTS) {
+            cancelRetry(context, alarmManager, requestCode);
+        }
     }
 
     private static void cancelRetry(Context context, AlarmManager alarmManager, int requestCode) {
