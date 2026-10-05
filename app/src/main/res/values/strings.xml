@@ -19,20 +19,22 @@
 
     <string name="admin_title">Anne TV · Gizli Yönetim</string>
     <string name="admin_subtitle">Bu ekran normal kullanımda görünmez. Ana ekranda 0 tuşuna yaklaşık 4 saniye basılı tutarak açılır.</string>
-    <string name="admin_status">Otomatik açılış: %1$s\nAna ekran: %2$s</string>
+    <string name="admin_status">Otomatik açılış: %1$s\nAna ekran: %2$s\nAPK yükleme izni: %3$s</string>
     <string name="admin_enabled">AÇIK</string>
     <string name="admin_disabled">KAPALI</string>
     <string name="admin_home_anne_tv">Anne TV</string>
     <string name="admin_home_other">Onvo / başka ana ekran</string>
+    <string name="admin_permission_granted">VAR</string>
+    <string name="admin_permission_not_granted">YOK</string>
     <string name="admin_enable_autostart">Otomatik açılışı aç</string>
     <string name="admin_disable_autostart">Otomatik açılışı kapat</string>
     <string name="admin_home_settings">Anne TV’yi varsayılan ana ekran yap / değiştir</string>
     <string name="admin_app_settings">Anne TV uygulama bilgisi ve izinleri</string>
     <string name="admin_unknown_sources">APK güncelleme yükleme izni</string>
-    <string name="admin_android_settings">Android ayarlarını aç</string>
+    <string name="admin_android_settings">Gerçek Android ayarlarını aç</string>
     <string name="admin_return_to_tv">Anne TV’ye dön</string>
     <string name="admin_home_chooser_title">Ana ekran uygulamasını seç</string>
     <string name="admin_autostart_enabled_toast">Otomatik açılış etkin.</string>
     <string name="admin_autostart_disabled_toast">Otomatik açılış kapatıldı.</string>
-    <string name="admin_settings_unavailable">Bu Onvo yazılımı Android ayar ekranını açmaya izin vermedi.</string>
+    <string name="admin_settings_unavailable">Onvo yazılımı bu ayrıntılı Android ayar ekranını gizlemiş veya erişimi engellemiş.</string>
 </resources>
