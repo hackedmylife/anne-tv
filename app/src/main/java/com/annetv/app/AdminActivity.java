@@ -1,154 +1,187 @@
 package com.annetv.app;
 
-import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.graphics.Color;
+import android.graphics.Typeface;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.view.Gravity;
 import android.view.View;
-import android.widget.Button;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
 public final class AdminActivity extends AppCompatActivity {
-    private static final String PREFS = "anne_tv_admin";
-    private static final String KEY_AUTO_START = "auto_start_enabled";
-
-    private TextView homeStatus;
-    private Button autoStartButton;
+    private SharedPreferences preferences;
+    private LinearLayout actions;
+    private TextView status;
+    private TextView autoStartAction;
 
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
+        preferences = getSharedPreferences(BootReceiver.PREFS, Context.MODE_PRIVATE);
         buildUi();
-        refreshState();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        refreshState();
+        refreshStatus();
     }
 
     private void buildUi() {
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setGravity(Gravity.CENTER_HORIZONTAL);
-        root.setPadding(dp(56), dp(42), dp(56), dp(42));
-        root.setBackgroundColor(Color.rgb(12, 12, 12));
-        setContentView(root);
+        ScrollView scroll = new ScrollView(this);
+        scroll.setBackgroundColor(0xFF0A0A0A);
+
+        actions = new LinearLayout(this);
+        actions.setOrientation(LinearLayout.VERTICAL);
+        actions.setPadding(dp(48), dp(36), dp(48), dp(48));
+        scroll.addView(actions, new ScrollView.LayoutParams(-1, -2));
 
         TextView title = new TextView(this);
         title.setText(R.string.admin_title);
         title.setTextColor(Color.WHITE);
         title.setTextSize(30);
-        title.setGravity(Gravity.CENTER);
-        root.addView(title, new LinearLayout.LayoutParams(-1, -2));
+        title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        actions.addView(title, new LinearLayout.LayoutParams(-1, -2));
 
-        TextView hint = new TextView(this);
-        hint.setText(R.string.admin_hint);
-        hint.setTextColor(0xFFBDBDBD);
-        hint.setTextSize(17);
-        hint.setGravity(Gravity.CENTER);
-        LinearLayout.LayoutParams hintParams = new LinearLayout.LayoutParams(-1, -2);
-        hintParams.setMargins(0, dp(12), 0, dp(28));
-        root.addView(hint, hintParams);
+        TextView subtitle = new TextView(this);
+        subtitle.setText(R.string.admin_subtitle);
+        subtitle.setTextColor(0xB3FFFFFF);
+        subtitle.setTextSize(17);
+        subtitle.setPadding(0, dp(8), 0, dp(20));
+        actions.addView(subtitle, new LinearLayout.LayoutParams(-1, -2));
 
-        homeStatus = new TextView(this);
-        homeStatus.setTextColor(Color.WHITE);
-        homeStatus.setTextSize(18);
-        homeStatus.setGravity(Gravity.CENTER);
-        LinearLayout.LayoutParams statusParams = new LinearLayout.LayoutParams(-1, -2);
-        statusParams.setMargins(0, 0, 0, dp(20));
-        root.addView(homeStatus, statusParams);
+        status = new TextView(this);
+        status.setTextColor(0xFFE6E6E6);
+        status.setTextSize(17);
+        status.setPadding(0, 0, 0, dp(18));
+        actions.addView(status, new LinearLayout.LayoutParams(-1, -2));
 
-        Button chooseHome = createButton(R.string.admin_choose_home);
-        chooseHome.setOnClickListener(v -> openHomeSettings());
-        root.addView(chooseHome, buttonParams());
+        autoStartAction = addAction("", v -> toggleAutoStart());
+        TextView homeAction = addAction(getString(R.string.admin_home_settings), v -> openHomeSettings());
+        addAction(getString(R.string.admin_app_settings), v -> openApplicationSettings());
+        addAction(getString(R.string.admin_unknown_sources), v -> openUnknownSources());
+        addAction(getString(R.string.admin_android_settings), v -> openAndroidSettings());
+        addAction(getString(R.string.admin_return_to_tv), v -> finish());
 
-        autoStartButton = createButton(R.string.admin_auto_start_on);
-        autoStartButton.setOnClickListener(v -> toggleAutoStart());
-        root.addView(autoStartButton, buttonParams());
-
-        Button changeHome = createButton(R.string.admin_restore_home);
-        changeHome.setOnClickListener(v -> openHomeSettings());
-        root.addView(changeHome, buttonParams());
-
-        Button back = createButton(R.string.admin_back_to_tv);
-        back.setOnClickListener(v -> finish());
-        root.addView(back, buttonParams());
-
-        chooseHome.requestFocus();
+        setContentView(scroll);
+        refreshStatus();
+        homeAction.requestFocus();
     }
 
-    private Button createButton(int textRes) {
-        Button button = new Button(this);
-        button.setText(textRes);
-        button.setTextSize(18);
-        button.setAllCaps(false);
-        button.setFocusable(true);
-        button.setMinHeight(dp(56));
-        return button;
+    private TextView addAction(String label, View.OnClickListener listener) {
+        TextView row = new TextView(this);
+        row.setText(label);
+        row.setTextColor(Color.WHITE);
+        row.setTextSize(20);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setFocusable(true);
+        row.setClickable(true);
+        row.setPadding(dp(20), dp(16), dp(20), dp(16));
+        row.setBackgroundColor(0xFF1B1B1B);
+        row.setOnClickListener(listener);
+        row.setOnFocusChangeListener((view, focused) -> {
+            TextView text = (TextView) view;
+            if (focused) {
+                text.setBackgroundColor(Color.WHITE);
+                text.setTextColor(Color.BLACK);
+            } else {
+                text.setBackgroundColor(0xFF1B1B1B);
+                text.setTextColor(Color.WHITE);
+            }
+        });
+
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, dp(64));
+        params.setMargins(0, 0, 0, dp(10));
+        actions.addView(row, params);
+        return row;
     }
 
-    private LinearLayout.LayoutParams buttonParams() {
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(dp(560), dp(64));
-        params.setMargins(0, dp(7), 0, dp(7));
-        return params;
-    }
-
-    private void refreshState() {
-        if (homeStatus == null || autoStartButton == null) return;
+    private void refreshStatus() {
+        if (status == null || autoStartAction == null) return;
+        boolean autoStart = preferences.getBoolean(BootReceiver.KEY_AUTO_START, true);
         boolean isHome = isAnneTvDefaultHome();
-        homeStatus.setText(isHome ? R.string.admin_home_active : R.string.admin_home_inactive);
 
-        boolean autoStart = getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                .getBoolean(KEY_AUTO_START, true);
-        autoStartButton.setText(autoStart ? R.string.admin_auto_start_on : R.string.admin_auto_start_off);
+        status.setText(getString(
+                R.string.admin_status,
+                autoStart ? getString(R.string.admin_enabled) : getString(R.string.admin_disabled),
+                isHome ? getString(R.string.admin_home_anne_tv) : getString(R.string.admin_home_other)));
+
+        autoStartAction.setText(autoStart
+                ? getString(R.string.admin_disable_autostart)
+                : getString(R.string.admin_enable_autostart));
     }
 
     private boolean isAnneTvDefaultHome() {
         try {
             Intent home = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME);
-            ResolveInfo info = getPackageManager().resolveActivity(home, PackageManager.MATCH_DEFAULT_ONLY);
-            return info != null && info.activityInfo != null
-                    && getPackageName().equals(info.activityInfo.packageName);
-        } catch (Exception ignored) {
+            ResolveInfo resolved = getPackageManager().resolveActivity(home, PackageManager.MATCH_DEFAULT_ONLY);
+            return resolved != null
+                    && resolved.activityInfo != null
+                    && getPackageName().equals(resolved.activityInfo.packageName);
+        } catch (RuntimeException ignored) {
             return false;
         }
     }
 
     private void toggleAutoStart() {
-        boolean current = getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                .getBoolean(KEY_AUTO_START, true);
-        getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                .edit().putBoolean(KEY_AUTO_START, !current).apply();
-        refreshState();
+        boolean current = preferences.getBoolean(BootReceiver.KEY_AUTO_START, true);
+        preferences.edit().putBoolean(BootReceiver.KEY_AUTO_START, !current).apply();
+        refreshStatus();
+        Toast.makeText(this,
+                !current ? R.string.admin_autostart_enabled_toast : R.string.admin_autostart_disabled_toast,
+                Toast.LENGTH_SHORT).show();
     }
 
     private void openHomeSettings() {
-        try {
-            startActivity(new Intent(Settings.ACTION_HOME_SETTINGS));
-            return;
-        } catch (ActivityNotFoundException ignored) {
-            // Some TV firmwares hide the dedicated Home settings page.
-        }
+        if (tryStart(new Intent(Settings.ACTION_HOME_SETTINGS))) return;
 
+        Intent home = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME);
+        Intent chooser = Intent.createChooser(home, getString(R.string.admin_home_chooser_title));
+        if (tryStart(chooser)) return;
+
+        openAndroidSettings();
+    }
+
+    private void openApplicationSettings() {
+        Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                Uri.parse("package:" + getPackageName()));
+        if (!tryStart(intent)) openAndroidSettings();
+    }
+
+    private void openUnknownSources() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Intent intent = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                    Uri.parse("package:" + getPackageName()));
+            if (tryStart(intent)) return;
+        }
+        openApplicationSettings();
+    }
+
+    private void openAndroidSettings() {
+        if (!tryStart(new Intent(Settings.ACTION_SETTINGS))) {
+            Toast.makeText(this, R.string.admin_settings_unavailable, Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private boolean tryStart(Intent intent) {
         try {
-            Intent home = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME);
-            startActivity(Intent.createChooser(home, getString(R.string.admin_choose_home)));
-        } catch (Exception ignored) {
-            try {
-                startActivity(new Intent(Settings.ACTION_SETTINGS));
-            } catch (Exception ignoredAgain) {
-                // Firmware exposes no compatible settings surface.
-            }
+            if (intent.resolveActivity(getPackageManager()) == null) return false;
+            startActivity(intent);
+            return true;
+        } catch (RuntimeException ignored) {
+            return false;
         }
     }
 
